@@ -15,8 +15,7 @@ from PIL import Image
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 import tempfile
-import eventlet
-eventlet.monkey_patch()
+
 # Load environment variables
 load_dotenv()
 
