@@ -1,0 +1,1260 @@
+{% extends "base.html" %}
+{% block title %}Chat - {{ username }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Custom Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #888; border-radius: 3px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #555; }
+    
+    /* Spinner Animation */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { animation: spin 1s linear infinite; }
+    
+    /* Typing indicator animation */
+    .typing-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .typing-dot {
+        width: 8px;
+        height: 8px;
+        background: #6B7280;
+        border-radius: 50%;
+        animation: typing 1.4s infinite;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    
+    @keyframes typing {
+        0%, 60%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-10px); }
+    }
+    
+    /* Image preview */
+    .image-preview {
+        max-width: 100%;
+        max-height: 400px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .image-preview:hover {
+        transform: scale(1.02);
+    }
+    
+    /* File attachment styles */
+    .attachment-preview {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        max-width: 400px;
+        color: white;
+        transition: transform 0.2s;
+    }
+    
+    .attachment-preview:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+    
+    .attachment-icon {
+        width: 48px;
+        height: 48px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        flex-shrink: 0;
+    }
+    
+    /* PDF preview */
+    .pdf-preview {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    /* Document preview */
+    .doc-preview {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    /* Video preview */
+    .video-preview {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    }
+    
+    /* Audio preview */
+    .audio-preview {
+        background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+    }
+    
+    /* Zip/Archive preview */
+    .zip-preview {
+        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+    }
+    
+    /* Multiple file preview grid */
+    .multi-file-preview {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 8px;
+        padding: 12px;
+        background: #F3F4F6;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .file-preview-item {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        background: white;
+        border: 2px solid #E5E7EB;
+        transition: all 0.2s;
+    }
+
+    .file-preview-item:hover {
+        border-color: #3B82F6;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .file-preview-item img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+    }
+
+    .file-preview-item-info {
+        padding: 8px;
+        font-size: 0.75rem;
+    }
+
+    .file-preview-item-icon {
+        height: 150px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .file-preview-remove {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        background: rgba(239, 68, 68, 0.9);
+        color: white;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        z-index: 10;
+    }
+
+    .file-preview-remove:hover {
+        background: rgb(239, 68, 68);
+        transform: scale(1.1);
+    }
+
+    .file-count-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #3B82F6;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    /* Image lightbox */
+    .image-lightbox {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+    }
+    
+    .image-lightbox img {
+        max-width: 90%;
+        max-height: 90%;
+        border-radius: 8px;
+    }
+
+    /* Message animations */
+    @keyframes slideIn {
+        from { transform: translateY(-10px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    .message-enter { animation: slideIn 0.3s ease-out; }
+
+    /* Download button styles */
+    .download-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255,255,255,0.2);
+        padding: 6px 12px;
+        border-radius: 6px;
+        color: white;
+        text-decoration: none;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+        backdrop-filter: blur(4px);
+    }
+
+    .download-btn:hover {
+        background: rgba(255,255,255,0.35);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    /* Image download overlay */
+    .image-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+
+    .image-download-overlay {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(0,0,0,0.7);
+        backdrop-filter: blur(8px);
+        padding: 8px 12px;
+        border-radius: 8px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 5;
+    }
+
+    .image-wrapper:hover .image-download-overlay {
+        opacity: 1;
+    }
+
+    /* File actions */
+    .file-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+    }
+
+    /* Attachment grid for messages */
+    .attachments-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .attachment-grid-item {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        background: rgba(255,255,255,0.1);
+        transition: all 0.2s;
+    }
+
+    .attachment-grid-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="h-screen flex flex-col bg-gray-100">
+    <!-- Top Navigation Bar -->
+    <nav class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <button id="toggleSidebar" class="lg:hidden text-white hover:bg-white/20 p-2 rounded-lg transition">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                <i class="fas fa-comments text-2xl"></i>
+                <h1 class="text-xl md:text-2xl font-bold">ChatLet</h1>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <!-- Current Room Display -->
+                <div class="hidden md:flex items-center bg-white/20 px-4 py-2 rounded-lg">
+                    <i class="fas fa-door-open mr-2"></i>
+                    <span id="currentRoomDisplay" class="font-semibold">General</span>
+                </div>
+                <!-- PDF Converter Link -->
+
+ <button onclick="requestNotificationPermission()" id="notifBtn"
+        class="hidden p-2 hover:bg-white/20 rounded-lg transition relative" title="Enable notifications">
+        <i class="fas fa-bell text-xl"></i>
+        <span class="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
+    </button>
+                <!-- User Profile -->
+                <div class="relative group">
+                    <button class="flex items-center space-x-2 hover:bg-white/20 px-3 py-2 rounded-lg transition">
+                        {% if user.profile_picture %}
+                            <img src="{{ url_for('static', filename=user.profile_picture) }}" alt="{{ username }}" class="w-8 h-8 rounded-full object-cover border-2 border-white">
+                        {% else %}
+                            <div class="w-8 h-8 bg-white text-blue-600 rounded-full flex items-center justify-center font-bold">
+                                {{ username[0].upper() }}
+                            </div>
+                        {% endif %}
+                        <span class="hidden md:inline font-semibold">{{ username }}</span>
+                        <i class="fas fa-chevron-down text-sm"></i>
+                    </button>
+                    
+                    <!-- Dropdown Menu -->
+                    <div class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl hidden group-hover:block z-50">
+                        <a href="{{ url_for('edit_profile') }}" class="block px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-t-lg">
+                            <i class="fas fa-user-edit mr-2 text-blue-500"></i>Edit Profile
+                        </a>
+                        <a href="{{ url_for('logout') }}" class="block px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-b-lg">
+                            <i class="fas fa-sign-out-alt mr-2 text-red-500"></i>Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Chat Container -->
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Sidebar (Users & Rooms) -->
+        <aside id="sidebar" class="w-full lg:w-80 bg-white border-r border-gray-200 flex flex-col absolute lg:relative z-40 h-full transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
+            <!-- Sidebar Header -->
+            <div class="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-lg font-bold text-gray-800">Chats</h2>
+                    <button id="closeSidebar" class="lg:hidden text-gray-600 hover:text-gray-800">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <!-- Search Bar -->
+                <div class="relative">
+                    <input type="text" id="searchUsers" placeholder="Search users..." 
+                        class="w-full px-4 py-2 pl-10 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                </div>
+            </div>
+
+            <!-- General Room -->
+            <div class="p-4 border-b border-gray-200">
+                <button onclick="joinGeneralRoom()" 
+                    class="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-blue-50 transition group" id="generalRoomBtn">
+                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                        <i class="fas fa-users text-white"></i>
+                    </div>
+                    <div class="flex-1 text-left">
+                        <h3 class="font-semibold text-gray-800 group-hover:text-blue-600">General Room</h3>
+                        <p class="text-xs text-gray-500">Public chat room</p>
+                    </div>
+                    <span id="generalBadge" class="hidden bg-red-500 text-white text-xs px-2 py-1 rounded-full">0</span>
+                </button>
+            </div>
+
+            <!-- Online Users List -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase mb-3">Online Users</h3>
+                <div id="usersList" class="space-y-2">
+                    <!-- Users will be populated here -->
+                    <div class="text-center py-8 text-gray-400">
+                        <i class="fas fa-users text-4xl mb-2"></i>
+                        <p>No users online</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Sidebar Overlay (Mobile) -->
+        <div id="sidebarOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 hidden lg:hidden"></div>
+
+        <!-- Chat Area -->
+        <main class="flex-1 flex flex-col bg-white">
+            <!-- Chat Header -->
+            <div class="bg-white border-b border-gray-200 p-4 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div id="chatHeaderAvatar" class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                            <i class="fas fa-users text-white"></i>
+                        </div>
+                        <div>
+                            <h2 id="chatHeaderTitle" class="font-bold text-gray-800">General Room</h2>
+                            <p id="chatHeaderSubtitle" class="text-xs text-gray-500">Public chat room</p>
+                            <!-- Typing indicator -->
+                            <div id="typingIndicator" class="hidden text-xs text-blue-600 flex items-center gap-1">
+                                <span id="typingText">typing</span>
+                                <div class="typing-indicator">
+                                    <div class="typing-dot"></div>
+                                    <div class="typing-dot"></div>
+                                    <div class="typing-dot"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-2">
+                        <button onclick="scrollToBottom()" class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition" title="Scroll to bottom">
+                            <i class="fas fa-arrow-down"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages Container -->
+            <div id="messagesContainer" class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4 bg-gradient-to-b from-gray-50 to-white">
+                <!-- Welcome Message -->
+                <div class="text-center py-8">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mb-4">
+                        <i class="fas fa-comments text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Welcome to General Room!</h3>
+                    <p class="text-gray-500">Start chatting with other users</p>
+                </div>
+            </div>
+
+            <!-- Message Input Area -->
+            <div class="bg-white border-t border-gray-200 p-4">
+                
+                <!-- File Preview -->
+                <div id="filePreviewContainer" class="hidden mb-3"></div>
+
+                <form id="messageForm" class="flex items-end space-x-2">
+                    <!-- Hidden File Input with MULTIPLE -->
+                    <input type="file" id="fileInput" class="hidden" multiple
+                        accept="image/*,.pdf,.doc,.docx,.txt,.zip,.mp3,.mp4,.webm,.ogg">
+                    
+                    <!-- File Upload Button -->
+                    <button type="button" id="fileUploadBtn"
+                        class="p-3 text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-all duration-200 flex-shrink-0" 
+                        title="Attach files (Max 10 files)">
+                        <i class="fas fa-paperclip text-xl"></i>
+                    </button>
+<a href="https://therainbowpdfconverter.tiiny.site/" target="_blank"
+    class="p-3 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg...">
+    <i class="fas fa-file-pdf text-xl"></i>
+</a>                    
+                    <!-- Message Input -->
+                    <div class="flex-1">
+                        <textarea id="messageInput" rows="1" placeholder="Type a message..." 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            style="max-height: 120px;"></textarea>
+                    </div>
+                    
+                    <!-- Send Button -->
+                    <button type="submit" 
+                        class="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-purple-700 transition duration-200 shadow-lg transform hover:scale-105 flex-shrink-0">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </form>
+                
+                <!-- File Upload Info -->
+                <p class="text-xs text-gray-500 mt-2 text-center">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Supports: Images, PDF, Documents, Audio, Video (Max 10 files, 16MB each)
+                </p>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Edit Message Modal -->
+<div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">Edit Message</h3>
+        <textarea id="editMessageInput" rows="3" 
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none mb-4"></textarea>
+        <div class="flex space-x-3">
+            <button onclick="cancelEdit()" class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+                Cancel
+            </button>
+            <button onclick="saveEdit()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                Save
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Image Lightbox -->
+<div id="imageLightbox" class="hidden image-lightbox" onclick="closeLightbox()">
+    <button class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300" onclick="closeLightbox()">
+        <i class="fas fa-times"></i>
+    </button>
+    <img id="lightboxImage" src="" alt="Full size image">
+    <a id="lightboxDownload" href="" download class="absolute bottom-4 right-4 download-btn bg-blue-600 hover:bg-blue-700" onclick="event.stopPropagation()">
+        <i class="fas fa-download"></i> Download
+    </a>
+</div>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script>
+    const socket = io();
+    const username = "{{ username }}";
+    let currentRoom = 'general';
+    let currentTargetUser = null;
+    let editingMessageId = null;
+    let uploadedFiles = [];  // Array for multiple files
+    let typingTimeout = null;
+
+    // Auto-resize textarea
+    document.getElementById('messageInput').addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+        handleTypingStart();
+    });
+
+    // File Upload Button Click
+    document.getElementById('fileUploadBtn').addEventListener('click', function() {
+        document.getElementById('fileInput').click();
+    });
+
+    // Sidebar Toggle
+    document.getElementById('toggleSidebar').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.remove('-translate-x-full');
+        document.getElementById('sidebarOverlay').classList.remove('hidden');
+    });
+
+    document.getElementById('closeSidebar').addEventListener('click', closeSidebar);
+    document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
+
+    function closeSidebar() {
+        document.getElementById('sidebar').classList.add('-translate-x-full');
+        document.getElementById('sidebarOverlay').classList.add('hidden');
+    }
+
+    // Search Users
+    document.getElementById('searchUsers').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const users = document.querySelectorAll('#usersList .user-item');
+        users.forEach(user => {
+            const username = user.dataset.username.toLowerCase();
+            user.style.display = username.includes(searchTerm) ? 'flex' : 'none';
+        });
+    });
+
+    // MULTIPLE FILE UPLOAD HANDLER
+    document.getElementById('fileInput').addEventListener('change', async function(e) {
+        const files = Array.from(e.target.files);
+        if (!files || files.length === 0) return;
+
+        // Validate file count
+        if (files.length > 10) {
+            alert('You can only upload up to 10 files at once!');
+            this.value = '';
+            return;
+        }
+
+        // Validate file sizes
+        for (const file of files) {
+            if (file.size > 16 * 1024 * 1024) {
+                alert(`File "${file.name}" exceeds 16MB limit!`);
+                this.value = '';
+                return;
+            }
+        }
+
+        const formData = new FormData();
+        files.forEach(file => {
+            formData.append('files[]', file);
+        });
+
+        // Show loading
+        const previewContainer = document.getElementById('filePreviewContainer');
+        previewContainer.innerHTML = `
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 animate-pulse">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-spinner spinner text-blue-500 text-2xl"></i>
+                    <div>
+                        <p class="text-sm font-semibold text-gray-800">Uploading ${files.length} file(s)...</p>
+                        <p class="text-xs text-gray-500">Please wait</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        previewContainer.classList.remove('hidden');
+
+        try {
+            const response = await fetch('/upload_multiple_attachments', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                uploadedFiles = result.files;
+                showMultipleFilePreview(result.files);
+                showNotification(`✅ ${result.count} file(s) uploaded successfully!`);
+            } else {
+                alert('Failed to upload files: ' + result.error);
+                previewContainer.classList.add('hidden');
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            alert('Failed to upload files. Please try again.');
+            previewContainer.classList.add('hidden');
+        }
+
+        // Reset file input
+        this.value = '';
+    });
+
+    function showMultipleFilePreview(files) {
+        const previewContainer = document.getElementById('filePreviewContainer');
+        
+        let previewHTML = `
+            <div class="mb-2">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="file-count-badge">
+                        <i class="fas fa-paperclip"></i>
+                        ${files.length} file(s) selected
+                    </span>
+                    <button onclick="removeAllFiles()" class="text-red-500 hover:text-red-700 text-sm font-semibold transition">
+                        <i class="fas fa-trash mr-1"></i> Remove All
+                    </button>
+                </div>
+                <div class="multi-file-preview custom-scrollbar">
+        `;
+        
+        files.forEach((file, index) => {
+            const isImage = file.file_type.startsWith('image/');
+            
+            if (isImage) {
+                previewHTML += `
+                    <div class="file-preview-item">
+                        <img src="${file.file_url}" alt="${file.file_name}">
+                        <div class="file-preview-item-info">
+                            <p class="font-semibold text-gray-800 truncate" title="${file.file_name}">${file.file_name}</p>
+                            <p class="text-gray-500">${formatFileSize(file.file_size)}</p>
+                        </div>
+                        <button class="file-preview-remove" onclick="removeFile(${index})" title="Remove">
+                            <i class="fas fa-times text-sm"></i>
+                        </button>
+                    </div>
+                `;
+            } else {
+                const icon = getFileIcon(file.file_type);
+                const extension = file.file_name.split('.').pop().toUpperCase();
+                
+                previewHTML += `
+                    <div class="file-preview-item">
+                        <div class="file-preview-item-icon">
+                            ${icon}
+                        </div>
+                        <div class="file-preview-item-info">
+                            <p class="font-semibold text-gray-800 truncate" title="${file.file_name}">${file.file_name}</p>
+                            <p class="text-gray-500">${formatFileSize(file.file_size)}</p>
+                            <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mt-1">${extension}</span>
+                        </div>
+                        <button class="file-preview-remove" onclick="removeFile(${index})" title="Remove">
+                            <i class="fas fa-times text-sm"></i>
+                        </button>
+                    </div>
+                `;
+            }
+        });
+        
+        previewHTML += `
+                </div>
+            </div>
+        `;
+        
+        previewContainer.innerHTML = previewHTML;
+        previewContainer.classList.remove('hidden');
+    }
+
+    function removeFile(index) {
+        uploadedFiles.splice(index, 1);
+        
+        if (uploadedFiles.length === 0) {
+            removeAllFiles();
+        } else {
+            showMultipleFilePreview(uploadedFiles);
+        }
+    }
+
+    function removeAllFiles() {
+        uploadedFiles = [];
+        document.getElementById('filePreviewContainer').classList.add('hidden');
+    }
+
+    function getFileIcon(fileType) {
+        if (fileType.includes('pdf')) return '<i class="fas fa-file-pdf"></i>';
+        if (fileType.includes('word') || fileType.includes('document')) return '<i class="fas fa-file-word"></i>';
+        if (fileType.includes('zip')) return '<i class="fas fa-file-archive"></i>';
+        if (fileType.includes('audio')) return '<i class="fas fa-file-audio"></i>';
+        if (fileType.includes('video')) return '<i class="fas fa-file-video"></i>';
+        return '<i class="fas fa-file"></i>';
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    // Socket Events
+    socket.on('connect', () => {
+        console.log('Connected to server');
+        joinGeneralRoom();
+    });
+
+    socket.on('update_users', (data) => {
+        updateUsersList(data.users);
+    });
+
+    socket.on('load_history', (data) => {
+        const messagesContainer = document.getElementById('messagesContainer');
+        messagesContainer.innerHTML = '';
+        
+        if (data.messages.length === 0) {
+            messagesContainer.innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fas fa-comments text-gray-300 text-6xl mb-4"></i>
+                    <p class="text-gray-500">No messages yet. Start the conversation!</p>
+                </div>
+            `;
+        } else {
+            data.messages.forEach(msg => displayMessage(msg));
+            scrollToBottom();
+        }
+    });
+
+    socket.on('message', (data) => {
+        if (data.room === currentRoom) {
+            displayMessage(data);
+            scrollToBottom();
+        }
+    });
+
+    socket.on('notification', (data) => {
+        showNotification(data.message);
+        updateBadge(data.room, data.count);
+    });
+
+    socket.on('status', (data) => {
+        displayStatusMessage(data.msg);
+    });
+
+    socket.on('user_typing', (data) => {
+        if (data.room === currentRoom && data.username !== username) {
+            const indicator = document.getElementById('typingIndicator');
+            const textSpan = document.getElementById('typingText');
+            
+            if (data.typing) {
+                textSpan.textContent = `${data.username} is typing`;
+                indicator.classList.remove('hidden');
+            } else {
+                indicator.classList.add('hidden');
+            }
+        }
+    });
+
+    socket.on('delete_message', (data) => {
+        const messageElement = document.querySelector(`[data-message-id="${data.message_id}"]`);
+        if (messageElement) {
+            messageElement.style.transition = 'opacity 0.3s';
+            messageElement.style.opacity = '0';
+            setTimeout(() => messageElement.remove(), 300);
+        }
+    });
+
+    socket.on('edit_message', (data) => {
+        const messageElement = document.querySelector(`[data-message-id="${data.message_id}"]`);
+        if (messageElement) {
+            const messageText = messageElement.querySelector('.message-text');
+            if (messageText) {
+                messageText.innerHTML = escapeHtml(data.new_message) + 
+                    ' <span class="text-xs text-gray-400 italic ml-2">(edited)</span>';
+            }
+        }
+    });
+
+    // Typing indicator functions
+    function handleTypingStart() {
+        socket.emit('typing_start', { room: currentRoom });
+        
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            socket.emit('typing_stop', { room: currentRoom });
+        }, 3000);
+    }
+
+    // Functions
+    function joinGeneralRoom() {
+        if (currentRoom !== 'general') {
+            socket.emit('leave', { room: currentRoom });
+        }
+        currentRoom = 'general';
+        currentTargetUser = null;
+        socket.emit('join', { room: 'general' });
+        updateChatHeader('General Room', 'Public chat room');
+        document.getElementById('currentRoomDisplay').textContent = 'General';
+        closeSidebar();
+    }
+
+    function startPrivateChat(targetUser) {
+        const room = [username, targetUser].sort().join(':');
+        if (currentRoom !== room) {
+            socket.emit('leave', { room: currentRoom });
+        }
+        currentRoom = room;
+        currentTargetUser = targetUser;
+        socket.emit('start_private_chat', { target_user: targetUser });
+        updateChatHeader(targetUser, 'Private chat', targetUser);
+        document.getElementById('currentRoomDisplay').textContent = targetUser;
+        closeSidebar();
+    }
+
+    function updateChatHeader(title, subtitle, targetUser = null) {
+        document.getElementById('chatHeaderTitle').textContent = title;
+        document.getElementById('chatHeaderSubtitle').textContent = subtitle;
+        
+        const avatar = document.getElementById('chatHeaderAvatar');
+        if (targetUser) {
+            const user = Array.from(document.querySelectorAll('.user-item')).find(el => el.dataset.username === targetUser);
+            if (user) {
+                const img = user.querySelector('img');
+                if (img) {
+                    avatar.innerHTML = `<img src="${img.src}" class="w-10 h-10 rounded-full object-cover">`;
+                } else {
+                    avatar.innerHTML = `<div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">${targetUser[0].toUpperCase()}</div>`;
+                }
+            }
+        } else {
+            avatar.innerHTML = '<i class="fas fa-users text-white"></i>';
+            avatar.className = 'w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center';
+        }
+    }
+
+    function updateUsersList(users) {
+        const usersList = document.getElementById('usersList');
+        const otherUsers = users.filter(u => u.username !== username);
+        
+        if (otherUsers.length === 0) {
+            usersList.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-users text-4xl mb-2"></i>
+                    <p>No other users online</p>
+                </div>
+            `;
+            return;
+        }
+        
+        usersList.innerHTML = otherUsers.map(user => `
+            <button onclick="startPrivateChat('${user.username}')" 
+                class="user-item w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition group" 
+                data-username="${user.username}">
+                ${user.profile_picture ? 
+                    `<img src="/static/${user.profile_picture}" alt="${user.username}" class="w-10 h-10 rounded-full object-cover border-2 border-gray-200">` :
+                    `<div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">${user.username[0].toUpperCase()}</div>`
+                }
+                <div class="flex-1 text-left">
+                    <h3 class="font-semibold text-gray-800 group-hover:text-blue-600">${user.username}</h3>
+                    <div class="flex items-center space-x-1">
+                        <span class="w-2 h-2 bg-${user.online ? 'green' : 'gray'}-500 rounded-full"></span>
+                        <span class="text-xs text-gray-500">${user.online ? 'Online' : 'Offline'}</span>
+                    </div>
+                </div>
+                <span class="notification-badge-${user.username} hidden bg-red-500 text-white text-xs px-2 py-1 rounded-full">0</span>
+            </button>
+        `).join('');
+    }
+
+    function displayMessage(data) {
+        const messagesContainer = document.getElementById('messagesContainer');
+        const isOwnMessage = data.username === username;
+        const time = new Date(data.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `flex ${isOwnMessage ? 'justify-end' : 'justify-start'} message-enter`;
+        messageDiv.dataset.messageId = data._id;
+        
+        // Handle multiple attachments
+        let attachmentsHTML = '';
+        if (data.attachments && data.attachments.length > 0) {
+            attachmentsHTML = renderMultipleAttachments(data.attachments);
+        } else if (data.attachment) {
+            attachmentsHTML = renderAttachment(data.attachment);
+        }
+        
+        messageDiv.innerHTML = `
+            <div class="max-w-xs md:max-w-md lg:max-w-lg xl:max-w-xl">
+                ${!isOwnMessage ? `<p class="text-xs text-gray-600 mb-1 ml-2 font-semibold">${data.username}</p>` : ''}
+                <div class="relative group">
+                    <div class="px-4 py-2 rounded-2xl ${isOwnMessage ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-br-none' : 'bg-gray-200 text-gray-800 rounded-bl-none'}">
+                        ${attachmentsHTML}
+                        ${data.message ? `<p class="message-text break-words">${escapeHtml(data.message)}</p>` : ''}
+                        <p class="text-xs ${isOwnMessage ? 'text-blue-100' : 'text-gray-500'} mt-1">${time}</p>
+                    </div>
+                    ${isOwnMessage ? `
+                        <div class="absolute right-0 top-0 hidden group-hover:flex space-x-1 bg-white rounded-lg shadow-lg p-1 -mt-8">
+                            <button onclick="editMessage('${data._id}', \`${escapeHtml(data.message).replace(/`/g, '\\`')}\`)" 
+                                class="p-2 hover:bg-gray-100 rounded text-gray-600" title="Edit">
+                                <i class="fas fa-edit text-sm"></i>
+                            </button>
+                            <button onclick="deleteMessage('${data._id}')" 
+                                class="p-2 hover:bg-gray-100 rounded text-red-600" title="Delete">
+                                <i class="fas fa-trash text-sm"></i>
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        
+        messagesContainer.appendChild(messageDiv);
+    }
+
+    // FIXED: Show ALL files, not just first 4
+    function renderMultipleAttachments(attachments) {
+        if (!attachments || attachments.length === 0) return '';
+        
+        if (attachments.length === 1) {
+            return renderAttachment(attachments[0]);
+        }
+        
+        // Show ALL files in grid (removed slice(0, 4))
+        let html = `<div class="attachments-grid mb-2">`;
+        
+        attachments.forEach((attachment, index) => {
+            const isImage = attachment.file_type.startsWith('image/');
+            
+            if (isImage) {
+                html += `
+                    <div class="attachment-grid-item relative group">
+                        <img src="${attachment.file_url}" alt="${attachment.file_name}" 
+                            class="w-full h-32 object-cover cursor-pointer hover:opacity-90 transition"
+                            onclick="openLightbox('${attachment.file_url}', '${attachment.file_name}')">
+                        <a href="${attachment.file_url}" download="${attachment.file_name}" 
+                            class="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition z-10"
+                            onclick="event.stopPropagation()">
+                            <i class="fas fa-download text-xs"></i>
+                        </a>
+                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition">
+                            <p class="text-white text-xs truncate">${attachment.file_name}</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const icon = getFileIcon(attachment.file_type);
+                const extension = attachment.file_name.split('.').pop().toUpperCase();
+                html += `
+                    <div class="attachment-grid-item p-3 text-center hover:bg-white/30 transition">
+                        <div class="text-3xl mb-2">${icon}</div>
+                        <p class="text-xs truncate font-semibold" title="${attachment.file_name}">${attachment.file_name}</p>
+                        <p class="text-xs opacity-75 mt-1">${formatFileSize(attachment.file_size)}</p>
+                        <span class="inline-block bg-white/40 text-xs px-2 py-0.5 rounded mt-1">${extension}</span>
+                        <a href="${attachment.file_url}" download="${attachment.file_name}" 
+                            class="block text-xs mt-2 hover:underline font-semibold">
+                            <i class="fas fa-download mr-1"></i>Download
+                        </a>
+                    </div>
+                `;
+            }
+        });
+        
+        html += `</div>`;
+        
+        // File count and Download All button
+        html += `
+            <div class="flex items-center justify-between text-xs opacity-75 mt-1 px-2">
+                <span><i class="fas fa-paperclip mr-1"></i>${attachments.length} file(s) attached</span>
+                <button onclick='downloadAllFiles(${JSON.stringify(attachments)})' 
+                    class="hover:underline font-semibold flex items-center gap-1">
+                    <i class="fas fa-download"></i>Download All
+                </button>
+            </div>
+        `;
+        
+        return html;
+    }
+
+    function downloadAllFiles(attachments) {
+        if (typeof attachments === 'string') {
+            attachments = JSON.parse(attachments);
+        }
+        attachments.forEach((attachment, index) => {
+            setTimeout(() => {
+                const link = document.createElement('a');
+                link.href = attachment.file_url;
+                link.download = attachment.file_name;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }, index * 300);
+        });
+        showNotification(`📥 Downloading ${attachments.length} file(s)...`);
+    }
+
+    function renderAttachment(attachment) {
+        const isImage = attachment.file_type.startsWith('image/');
+        const isPDF = attachment.file_type.includes('pdf');
+        const isVideo = attachment.file_type.startsWith('video/');
+        const isAudio = attachment.file_type.startsWith('audio/');
+        const isZip = attachment.file_type.includes('zip') || attachment.file_type.includes('archive');
+        
+        if (isImage) {
+            return `
+                <div class="mb-2 image-wrapper">
+                    <img src="${attachment.file_url}" alt="${attachment.file_name}" 
+                        class="image-preview rounded-lg shadow-lg" onclick="openLightbox('${attachment.file_url}', '${attachment.file_name}')">
+                    <div class="image-download-overlay">
+                        <a href="${attachment.file_url}" download="${attachment.file_name}" 
+                            class="text-white hover:text-gray-200 transition"
+                            onclick="event.stopPropagation()" title="Download image">
+                            <i class="fas fa-download text-lg"></i>
+                        </a>
+                    </div>
+                </div>
+            `;
+        } else if (isPDF) {
+            return `
+                <div class="attachment-preview pdf-preview mb-2">
+                    <div class="attachment-icon">
+                        <i class="fas fa-file-pdf"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-semibold text-sm">${attachment.file_name}</p>
+                        <p class="text-xs opacity-80">${formatFileSize(attachment.file_size)} • PDF</p>
+                        <div class="file-actions">
+                            <a href="${attachment.file_url}" target="_blank" class="download-btn">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                            <a href="${attachment.file_url}" download="${attachment.file_name}" class="download-btn">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (isVideo) {
+            return `
+                <div class="mb-2 relative">
+                    <video controls class="image-preview rounded-lg shadow-lg" style="max-height: 300px;">
+                        <source src="${attachment.file_url}" type="${attachment.file_type}">
+                    </video>
+                    <a href="${attachment.file_url}" download="${attachment.file_name}"
+                        class="absolute top-2 right-2 download-btn bg-black/60 hover:bg-black/80">
+                        <i class="fas fa-download"></i> Download
+                    </a>
+                </div>
+            `;
+        } else if (isAudio) {
+            return `
+                <div class="attachment-preview audio-preview mb-2">
+                    <div class="attachment-icon">
+                        <i class="fas fa-file-audio"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-semibold text-sm">${attachment.file_name}</p>
+                        <p class="text-xs opacity-80 mb-2">${formatFileSize(attachment.file_size)}</p>
+                        <audio controls class="w-full mb-2" style="height: 32px;">
+                            <source src="${attachment.file_url}" type="${attachment.file_type}">
+                        </audio>
+                        <a href="${attachment.file_url}" download="${attachment.file_name}" class="download-btn">
+                            <i class="fas fa-download"></i> Download
+                        </a>
+                    </div>
+                </div>
+            `;
+        } else if (isZip) {
+            return `
+                <div class="attachment-preview zip-preview mb-2">
+                    <div class="attachment-icon">
+                        <i class="fas fa-file-archive"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-semibold text-sm">${attachment.file_name}</p>
+                        <p class="text-xs opacity-80">${formatFileSize(attachment.file_size)}</p>
+                        <div class="file-actions">
+                            <a href="${attachment.file_url}" download="${attachment.file_name}" class="download-btn">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            const icon = getFileIcon(attachment.file_type);
+            const fileExtension = attachment.file_name.split('.').pop().toUpperCase();
+            return `
+                <div class="attachment-preview doc-preview mb-2">
+                    <div class="attachment-icon">
+                        ${icon}
+                    </div>
+                    <div class="flex-1">
+                        <p class="font-semibold text-sm">${attachment.file_name}</p>
+                        <p class="text-xs opacity-80">${formatFileSize(attachment.file_size)} • ${fileExtension}</p>
+                        <div class="file-actions">
+                            <a href="${attachment.file_url}" target="_blank" class="download-btn">
+                                <i class="fas fa-external-link-alt"></i> Open
+                            </a>
+                            <a href="${attachment.file_url}" download="${attachment.file_name}" class="download-btn">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    function openLightbox(imageUrl, filename) {
+        document.getElementById('lightboxImage').src = imageUrl;
+        document.getElementById('lightboxDownload').href = imageUrl;
+        document.getElementById('lightboxDownload').download = filename;
+        document.getElementById('imageLightbox').classList.remove('hidden');
+    }
+
+    function closeLightbox() {
+        document.getElementById('imageLightbox').classList.add('hidden');
+    }
+
+    function displayStatusMessage(msg) {
+        const messagesContainer = document.getElementById('messagesContainer');
+        const statusDiv = document.createElement('div');
+        statusDiv.className = 'text-center my-2';
+        statusDiv.innerHTML = `<p class="text-xs text-gray-500 bg-gray-100 inline-block px-3 py-1 rounded-full">${msg}</p>`;
+        messagesContainer.appendChild(statusDiv);
+    }
+
+    function showNotification(message) {
+        const notif = document.createElement('div');
+        notif.className = 'fixed top-20 right-4 bg-white shadow-lg rounded-lg p-4 max-w-sm z-50 border-l-4 border-blue-500';
+        notif.innerHTML = `
+            <div class="flex items-start space-x-3">
+                <i class="fas fa-comment-dots text-blue-500 text-xl"></i>
+                <div class="flex-1">
+                    <p class="text-sm text-gray-800">${message}</p>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        document.body.appendChild(notif);
+        setTimeout(() => {
+            notif.style.transition = 'opacity 0.5s';
+            notif.style.opacity = '0';
+            setTimeout(() => notif.remove(), 500);
+        }, 5000);
+    }
+
+    function updateBadge(room, count) {
+        if (room === 'general' && currentRoom !== 'general') {
+            const badge = document.getElementById('generalBadge');
+            badge.textContent = count;
+            badge.classList.toggle('hidden', count === 0);
+        } else if (room !== 'general') {
+            const targetUser = room.split(':').find(u => u !== username);
+            const badge = document.querySelector(`.notification-badge-${targetUser}`);
+            if (badge && currentRoom !== room) {
+                badge.textContent = count;
+                badge.classList.toggle('hidden', count === 0);
+            }
+        }
+    }
+
+    function scrollToBottom() {
+        const container = document.getElementById('messagesContainer');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function deleteMessage(messageId) {
+        if (confirm('Delete this message?')) {
+            socket.emit('delete_message', { message_id: messageId, room: currentRoom });
+        }
+    }
+
+    function editMessage(messageId, currentMessage) {
+        editingMessageId = messageId;
+        document.getElementById('editMessageInput').value = currentMessage;
+        document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function cancelEdit() {
+        editingMessageId = null;
+        document.getElementById('editModal').classList.add('hidden');
+    }
+
+    function saveEdit() {
+        const newMessage = document.getElementById('editMessageInput').value.trim();
+        if (newMessage && editingMessageId) {
+            socket.emit('edit_message', {
+                message_id: editingMessageId,
+                room: currentRoom,
+                new_message: newMessage
+            });
+            cancelEdit();
+        }
+    }
+
+    // Send Message - MULTIPLE FILES SUPPORT
+    document.getElementById('messageForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('messageInput');
+        const message = input.value.trim();
+        
+        if (message || uploadedFiles.length > 0) {
+            const messageData = {
+                message: message,
+                room: currentRoom
+            };
+            
+            // Send multiple attachments
+            if (uploadedFiles.length > 0) {
+                messageData.attachments = uploadedFiles;
+            }
+            
+            socket.emit('message', messageData);
+            input.value = '';
+            input.style.height = 'auto';
+            
+            // Clear attachments
+            uploadedFiles = [];
+            document.getElementById('filePreviewContainer').classList.add('hidden');
+            
+            // Stop typing indicator
+            clearTimeout(typingTimeout);
+            socket.emit('typing_stop', { room: currentRoom });
+        }
+    });
+
+    // Enter to send (Shift+Enter for new line)
+    document.getElementById('messageInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            document.getElementById('messageForm').dispatchEvent(new Event('submit'));
+        }
+    });
+</script>
+{% endblock %}

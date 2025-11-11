@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+{% block title %}Edit Profile - Chat App{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4">
+    <div class="max-w-4xl mx-auto">
+        <!-- Back Button -->
+        <a href="{{ url_for('chat') }}" class="inline-flex items-center text-blue-600 hover:text-blue-700 mb-6 transition">
+            <i class="fas fa-arrow-left mr-2"></i>
+            Back to Chat
+        </a>
+
+        <div class="grid md:grid-cols-2 gap-6">
+            <!-- Profile Card -->
+            <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-center">
+                    <div class="inline-block relative">
+                        {% if user.profile_picture %}
+                            <img id="profilePreview" src="{{ url_for('static', filename=user.profile_picture) }}" 
+                                alt="{{ username }}" class="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg">
+                        {% else %}
+                            <div id="profilePreview" class="w-32 h-32 bg-white text-blue-600 rounded-full flex items-center justify-center text-5xl font-bold border-4 border-white shadow-lg">
+                                {{ user.username[0].upper() }}
+                            </div>
+                        {% endif %}
+                        <label for="profile_picture" class="absolute bottom-0 right-0 bg-white text-blue-600 rounded-full p-3 cursor-pointer hover:bg-gray-100 shadow-lg transform hover:scale-110 transition">
+                            <i class="fas fa-camera"></i>
+                        </label>
+                    </div>
+                    <h1 class="text-2xl font-bold text-white mt-4">{{ user.username }}</h1>
+                </div>
+
+                <!-- Profile Form -->
+                <form method="POST" action="{{ url_for('edit_profile') }}" enctype="multipart/form-data" id="profileForm" class="p-8">
+                    <!-- Profile Picture Upload (Hidden) -->
+                    <input type="file" name="profile_picture" id="profile_picture" accept="image/*" class="hidden">
+
+                    <!-- Bio -->
+                    <div class="mb-6">
+                        <label for="bio" class="block text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-info-circle mr-2 text-blue-500"></i>Bio
+                        </label>
+                        <textarea name="bio" id="bio" rows="4" maxlength="200"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            placeholder="Tell us about yourself...">{{ user.bio }}</textarea>
+                        <div class="flex justify-between mt-2">
+                            <p class="text-xs text-gray-500">Maximum 200 characters</p>
+                            <p class="text-xs text-gray-500"><span id="charCount">{{ user.bio|length if user.bio else 0 }}</span>/200</p>
+                        </div>
+                    </div>
+
+                    <!-- Current Profile Info -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                        <h3 class="font-semibold text-gray-700 mb-3">Profile Information</h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Username:</span>
+                                <span class="font-semibold text-gray-800">{{ user.username }}</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Profile Picture:</span>
+                                <span class="font-semibold text-gray-800" id="pictureStatus">
+                                    {{ 'Uploaded' if user.profile_picture else 'Not set' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <button type="submit" id="saveBtn"
+                        class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 transform hover:scale-105 transition duration-200 shadow-lg">
+                        <span id="saveBtnText">
+                            <i class="fas fa-save mr-2"></i>Save Profile
+                        </span>
+                        <span id="saveBtnSpinner" class="hidden">
+                            <i class="fas fa-spinner spinner mr-2"></i>Saving...
+                        </span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Change Password Card -->
+            <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                <!-- Header -->
+                <div class="bg-gradient-to-r from-red-500 to-pink-600 p-6 text-center">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full mb-3">
+                        <i class="fas fa-lock text-white text-2xl"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-white">Change Password</h2>
+                    <p class="text-white/80 text-sm mt-1">Update your account password</p>
+                </div>
+
+                <!-- Password Form -->
+                <form id="passwordForm" class="p-8">
+                    <!-- Current Password -->
+                    <div class="mb-6">
+                        <label for="current_password" class="block text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-key mr-2 text-red-500"></i>Current Password
+                        </label>
+                        <div class="relative">
+                            <input type="password" id="current_password" required
+                                class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                placeholder="Enter current password">
+                            <button type="button" onclick="togglePasswordField('current_password')" 
+                                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-eye" id="current_password_icon"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- New Password -->
+                    <div class="mb-6">
+                        <label for="new_password" class="block text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-lock mr-2 text-red-500"></i>New Password
+                        </label>
+                        <div class="relative">
+                            <input type="password" id="new_password" required minlength="6"
+                                class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                placeholder="Enter new password">
+                            <button type="button" onclick="togglePasswordField('new_password')" 
+                                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-eye" id="new_password_icon"></i>
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">At least 6 characters</p>
+                    </div>
+
+                    <!-- Confirm Password -->
+                    <div class="mb-6">
+                        <label for="confirm_password" class="block text-sm font-semibold text-gray-700 mb-2">
+                            <i class="fas fa-check-circle mr-2 text-red-500"></i>Confirm New Password
+                        </label>
+                        <div class="relative">
+                            <input type="password" id="confirm_password" required minlength="6"
+                                class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                placeholder="Confirm new password">
+                            <button type="button" onclick="togglePasswordField('confirm_password')" 
+                                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-eye" id="confirm_password_icon"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Password Strength Indicator -->
+                    <div class="mb-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs text-gray-600">Password Strength:</span>
+                            <span id="strengthText" class="text-xs font-semibold">-</span>
+                        </div>
+                        <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div id="strengthBar" class="h-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <button type="submit" id="passwordBtn"
+                        class="w-full bg-gradient-to-r from-red-500 to-pink-600 text-white py-3 rounded-lg font-semibold hover:from-red-600 hover:to-pink-700 transform hover:scale-105 transition duration-200 shadow-lg">
+                        <span id="passwordBtnText">
+                            <i class="fas fa-key mr-2"></i>Change Password
+                        </span>
+                        <span id="passwordBtnSpinner" class="hidden">
+                            <i class="fas fa-spinner spinner mr-2"></i>Changing...
+                        </span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Back to Chat Button (Bottom) -->
+        <div class="mt-6 text-center">
+            <a href="{{ url_for('chat') }}" 
+                class="inline-flex items-center bg-white text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition shadow-lg">
+                <i class="fas fa-times mr-2"></i>Cancel & Return to Chat
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Character counter
+    const bioTextarea = document.getElementById('bio');
+    const charCount = document.getElementById('charCount');
+    
+    bioTextarea.addEventListener('input', () => {
+        charCount.textContent = bioTextarea.value.length;
+    });
+
+    // Profile picture preview
+    document.getElementById('profile_picture').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('profilePreview');
+                preview.innerHTML = `<img src="${e.target.result}" class="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg">`;
+                document.getElementById('pictureStatus').textContent = 'Ready to upload';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Profile Form submission
+    document.getElementById('profileForm').addEventListener('submit', function() {
+        const btnText = document.getElementById('saveBtnText');
+        const btnSpinner = document.getElementById('saveBtnSpinner');
+        const saveBtn = document.getElementById('saveBtn');
+        
+        btnText.classList.add('hidden');
+        btnSpinner.classList.remove('hidden');
+        saveBtn.disabled = true;
+    });
+
+    // Toggle password visibility
+    function togglePasswordField(fieldId) {
+        const field = document.getElementById(fieldId);
+        const icon = document.getElementById(fieldId + '_icon');
+        
+        if (field.type === 'password') {
+            field.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            field.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+
+    // Password strength checker
+    document.getElementById('new_password').addEventListener('input', function() {
+        const password = this.value;
+        const strengthBar = document.getElementById('strengthBar');
+        const strengthText = document.getElementById('strengthText');
+        
+        let strength = 0;
+        if (password.length >= 6) strength += 25;
+        if (password.length >= 10) strength += 25;
+        if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength += 25;
+        if (/[0-9]/.test(password)) strength += 15;
+        if (/[^a-zA-Z0-9]/.test(password)) strength += 10;
+        
+        strengthBar.style.width = strength + '%';
+        
+        if (strength < 30) {
+            strengthBar.className = 'h-full bg-red-500 transition-all duration-300';
+            strengthText.textContent = 'Weak';
+            strengthText.className = 'text-xs font-semibold text-red-500';
+        } else if (strength < 60) {
+            strengthBar.className = 'h-full bg-yellow-500 transition-all duration-300';
+            strengthText.textContent = 'Fair';
+            strengthText.className = 'text-xs font-semibold text-yellow-500';
+        } else if (strength < 80) {
+            strengthBar.className = 'h-full bg-blue-500 transition-all duration-300';
+            strengthText.textContent = 'Good';
+            strengthText.className = 'text-xs font-semibold text-blue-500';
+        } else {
+            strengthBar.className = 'h-full bg-green-500 transition-all duration-300';
+            strengthText.textContent = 'Strong';
+            strengthText.className = 'text-xs font-semibold text-green-500';
+        }
+    });
+
+    // Password Form submission
+    document.getElementById('passwordForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const currentPassword = document.getElementById('current_password').value;
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        
+        // Validate passwords match
+        if (newPassword !== confirmPassword) {
+            alert('❌ New passwords do not match!');
+            return;
+        }
+        
+        if (newPassword.length < 6) {
+            alert('❌ Password must be at least 6 characters!');
+            return;
+        }
+        
+        const btnText = document.getElementById('passwordBtnText');
+        const btnSpinner = document.getElementById('passwordBtnSpinner');
+        const passwordBtn = document.getElementById('passwordBtn');
+        
+        btnText.classList.add('hidden');
+        btnSpinner.classList.remove('hidden');
+        passwordBtn.disabled = true;
+        
+        try {
+            const formData = new FormData();
+            formData.append('current_password', currentPassword);
+            formData.append('new_password', newPassword);
+            
+            const response = await fetch('/change_password', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert('✅ Password changed successfully!');
+                document.getElementById('passwordForm').reset();
+                document.getElementById('strengthBar').style.width = '0%';
+                document.getElementById('strengthText').textContent = '-';
+            } else {
+                alert('❌ ' + result.error);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('❌ Failed to change password. Please try again.');
+        } finally {
+            btnText.classList.remove('hidden');
+            btnSpinner.classList.add('hidden');
+            passwordBtn.disabled = false;
+        }
+    });
+</script>
+{% endblock %}

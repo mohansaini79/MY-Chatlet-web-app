@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Sign Up - ChatLet {% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 md:p-10">
+        <!-- Logo/Header -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-blue-600 rounded-full mb-4">
+                <i class="fas fa-user-plus text-white text-2xl"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-800">Create Account</h1>
+            <p class="text-gray-500 mt-2">Join to ChatLet community</p>
+        </div>
+
+        <!-- Signup Form -->
+        <form method="POST" action="{{ url_for('signup') }}" id="signupForm" class="space-y-6">
+            <!-- Username -->
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-user mr-2 text-green-500"></i>Username
+                </label>
+                <input type="text" name="username" id="username" required minlength="3"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
+                    placeholder="Choose a username">
+                <p class="text-xs text-gray-500 mt-1">At least 3 characters</p>
+            </div>
+
+            <!-- Password -->
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-lock mr-2 text-green-500"></i>Password
+                </label>
+                <div class="relative">
+                    <input type="password" name="password" id="password" required minlength="6"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
+                        placeholder="Create a password">
+                    <button type="button" onclick="togglePassword()" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-eye" id="toggleIcon"></i>
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">At least 6 characters</p>
+            </div>
+
+            <!-- Confirm Password -->
+            <div>
+                <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-lock mr-2 text-green-500"></i>Confirm Password
+                </label>
+                <input type="password" id="confirmPassword" required minlength="6"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-200"
+                    placeholder="Confirm your password">
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="signupBtn"
+                class="w-full bg-gradient-to-r from-green-500 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-green-600 hover:to-blue-700 transform hover:scale-105 transition duration-200 shadow-lg">
+                <span id="btnText">Create Account</span>
+                <span id="btnSpinner" class="hidden">
+                    <i class="fas fa-spinner spinner"></i> Creating account...
+                </span>
+            </button>
+        </form>
+
+        <!-- Divider -->
+        <div class="mt-6 text-center">
+            <p class="text-gray-600">
+                Already have an account? 
+                <a href="{{ url_for('login') }}" class="text-green-600 hover:text-green-700 font-semibold">Sign In</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    function togglePassword() {
+        const passwordInput = document.getElementById('password');
+        const toggleIcon = document.getElementById('toggleIcon');
+        
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            toggleIcon.classList.remove('fa-eye');
+            toggleIcon.classList.add('fa-eye-slash');
+        } else {
+            passwordInput.type = 'password';
+            toggleIcon.classList.remove('fa-eye-slash');
+            toggleIcon.classList.add('fa-eye');
+        }
+    }
+
+    document.getElementById('signupForm').addEventListener('submit', function(e) {
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        
+        if (password !== confirmPassword) {
+            e.preventDefault();
+            alert('Passwords do not match!');
+            return;
+        }
+
+        const btnText = document.getElementById('btnText');
+        const btnSpinner = document.getElementById('btnSpinner');
+        const signupBtn = document.getElementById('signupBtn');
+        
+        btnText.classList.add('hidden');
+        btnSpinner.classList.remove('hidden');
+        signupBtn.disabled = true;
+    });
+</script>
+{% endblock %}
