@@ -53,7 +53,7 @@ if ALLOWED_ORIGINS != '*':
 socketio = SocketIO(
     app,
     cors_allowed_origins=ALLOWED_ORIGINS,
-    async_mode='eventlet',  # Better for production
+    async_mode='threading',  # Better for production
     logger=log_level == logging.DEBUG,
     engineio_logger=log_level == logging.DEBUG,
     ping_timeout=60,
