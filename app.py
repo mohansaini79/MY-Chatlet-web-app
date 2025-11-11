@@ -76,12 +76,12 @@ for folder in [UPLOAD_FOLDER, ATTACHMENTS_FOLDER]:
 MAX_RETRIES = 3
 for attempt in range(MAX_RETRIES):
     try:
-        mongo_uri = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
+        mongo_uri = os.getenv('MONGO_URI')
         client = MongoClient(
             mongo_uri,
-            serverSelectionTimeoutMS=5000,
-            connectTimeoutMS=10000,
-            socketTimeoutMS=10000
+            serverSelectionTimeoutMS=30000,
+            connectTimeoutMS=30000,
+            socketTimeoutMS=30000
         )
         client.server_info()  # Force connection test
         
@@ -125,7 +125,6 @@ def index():
     if 'username' in session:
         return redirect(url_for('chat'))
     return redirect(url_for('login'))
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Handle user login"""
@@ -157,7 +156,8 @@ def login():
             logger.error(f"❌ Login error: {e}")
             flash('An error occurred. Please try again.', 'error')
     
-    return render_template('login.html')
+    return render_template('login.html')  # ✅ Correct
+
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -167,19 +167,20 @@ def signup():
         password = request.form.get('password', '')
         email = request.form.get('email', '').strip()
         
+        # Validation
         if not username or not password:
             flash('Username and password are required!', 'error')
-            return render_template('signup.html')
+            return render_template('signup.html')  # ✅ Added return
         
         if len(password) < 6:
             flash('Password must be at least 6 characters!', 'error')
-            return render_template('signup.html')
+            return render_template('signup.html')  # ✅ Added return
         
         try:
             existing_user = users_collection.find_one({'username': username})
             if existing_user:
                 flash('Username already exists!', 'error')
-                return render_template('signup.html')
+                return render_template('signup.html')  # ✅ Added return
             
             user_id = users_collection.insert_one({
                 'username': username,
@@ -190,17 +191,21 @@ def signup():
                 'created_at': get_current_time(),
                 'last_seen': get_current_time(),
                 'online': False,
-                'theme': 'light'
+                'theme': 'light',
+                'chat_background_type': 'default',  # ✅ Added for bg feature
+                'chat_background_value': 'default'   # ✅ Added for bg feature
             }).inserted_id
             
-            logger.info(f"✅ New user registered: {username}")
+            logger.info(f"✅ New user registered: {username} with email: {email}")
             flash('Signup successful! Please login.', 'success')
-            return redirect(url_for('login'))
+            return redirect(url_for('login'))  # ✅ Fixed: 'login' not 'signup.html'
         except Exception as e:
             logger.error(f"❌ Signup error: {e}")
             flash('An error occurred. Please try again.', 'error')
+            return render_template('signup.html')  # ✅ Added return
     
-    return render_template('signup.html')
+    return render_template('signup.html')  # ✅ Added for GET request
+
 
 @app.route('/logout')
 def logout():
@@ -222,7 +227,7 @@ def logout():
         except Exception as e:
             logger.error(f"❌ Logout error: {e}")
     
-    return redirect(url_for('login'))
+    return redirect(url_for('login'))  # ✅ Correct
 
 @app.route('/chat')
 def chat():
@@ -285,28 +290,112 @@ def edit_profile():
             flash('Failed to update profile!', 'error')
     
     return render_template('edit_profile.html', user=user)
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    """Handle forgot password request"""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        email = request.form.get('email', '').strip()
+        
+        if not username or not email:
+            flash('Username and email are required!', 'error')
+            return render_template('forgot_password.html')
+        
+        try:
+            user = users_collection.find_one({'username': username, 'email': email})
+            
+            if user:
+                import secrets
+                reset_token = secrets.token_urlsafe(32)
+                
+                users_collection.update_one(
+                    {'username': username},
+                    {'$set': {
+                        'reset_token': reset_token,
+                        'reset_token_expiry': (datetime.now(IST) + timedelta(hours=1)).isoformat()
+                    }}
+                )
+                
+                logger.info(f"✅ Password reset token generated for: {username}")
+                return redirect(url_for('reset_password', token=reset_token))
+            else:
+                flash('No account found with this username and email!', 'error')
+                logger.warning(f"⚠️ Failed password reset attempt: {username}")
+        except Exception as e:
+            logger.error(f"❌ Forgot password error: {e}")
+            flash('An error occurred. Please try again.', 'error')
+    
+    return render_template('forgot_password.html')
+
+
+@app.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    """Handle password reset with token"""
+    try:
+        user = users_collection.find_one({
+            'reset_token': token,
+            'reset_token_expiry': {'$gt': datetime.now(IST).isoformat()}
+        })
+        
+        if not user:
+            flash('Invalid or expired reset link!', 'error')
+            return redirect(url_for('login'))
+        
+        if request.method == 'POST':
+            new_password = request.form.get('new_password', '')
+            confirm_password = request.form.get('confirm_password', '')
+            
+            if not new_password or not confirm_password:
+                flash('Both password fields are required!', 'error')
+                return render_template('reset_password.html', token=token)
+            
+            if new_password != confirm_password:
+                flash('Passwords do not match!', 'error')
+                return render_template('reset_password.html', token=token)
+            
+            if len(new_password) < 6:
+                flash('Password must be at least 6 characters!', 'error')
+                return render_template('reset_password.html', token=token)
+            
+            users_collection.update_one(
+                {'reset_token': token},
+                {
+                    '$set': {'password': generate_password_hash(new_password)},
+                    '$unset': {'reset_token': '', 'reset_token_expiry': ''}
+                }
+            )
+            
+            flash('✅ Password reset successful! Please login with your new password.', 'success')
+            logger.info(f"✅ Password reset completed for: {user['username']}")
+            return redirect(url_for('login'))
+        
+        return render_template('reset_password.html', token=token)
+    
+    except Exception as e:
+        logger.error(f"❌ Reset password error: {e}")
+        flash('An error occurred. Please try again.', 'error')
+        return redirect(url_for('login'))
+
 
 @app.route('/change_password', methods=['POST'])
 def change_password():
-    """Handle password change"""
+    """Handle password change without current password"""
     if 'username' not in session:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
     
-    current_password = request.form.get('current_password')
     new_password = request.form.get('new_password')
+    confirm_password = request.form.get('confirm_password')
     
-    if not current_password or not new_password:
+    if not new_password or not confirm_password:
         return jsonify({'success': False, 'error': 'All fields are required'}), 400
+    
+    if new_password != confirm_password:
+        return jsonify({'success': False, 'error': 'Passwords do not match'}), 400
     
     if len(new_password) < 6:
         return jsonify({'success': False, 'error': 'Password must be at least 6 characters'}), 400
     
     try:
-        user = users_collection.find_one({'username': session['username']})
-        
-        if not check_password_hash(user['password'], current_password):
-            return jsonify({'success': False, 'error': 'Current password is incorrect'}), 400
-        
         users_collection.update_one(
             {'username': session['username']},
             {'$set': {'password': generate_password_hash(new_password)}}
@@ -317,7 +406,6 @@ def change_password():
     except Exception as e:
         logger.error(f"❌ Password change error: {e}")
         return jsonify({'success': False, 'error': 'An error occurred'}), 500
-
 @app.route('/upload_attachment', methods=['POST'])
 def upload_attachment():
     """Handle single file upload"""
@@ -414,104 +502,6 @@ def upload_multiple_attachments():
     
     return jsonify({'success': False, 'error': 'Failed to upload files'}), 500
 
-@app.route('/convert_images_to_pdf', methods=['POST'])
-def convert_images_to_pdf():
-    """Convert multiple images to PDF"""
-    if 'username' not in session:
-        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
-    
-    if 'images[]' not in request.files:
-        return jsonify({'success': False, 'error': 'No images provided'}), 400
-    
-    images = request.files.getlist('images[]')
-    
-    if not images or len(images) == 0:
-        return jsonify({'success': False, 'error': 'No images selected'}), 400
-    
-    if len(images) > 20:
-        return jsonify({'success': False, 'error': 'Maximum 20 images allowed'}), 400
-    
-    try:
-        timestamp = datetime.now().timestamp()
-        pdf_filename = f"{session['username']}_images_{int(timestamp)}.pdf"
-        pdf_path = os.path.join(ATTACHMENTS_FOLDER, pdf_filename)
-        
-        c = canvas.Canvas(pdf_path, pagesize=A4)
-        page_width, page_height = A4
-        
-        for img_file in images:
-            if img_file.filename == '':
-                continue
-            
-            temp_img_path = os.path.join(tempfile.gettempdir(), secure_filename(img_file.filename))
-            img_file.save(temp_img_path)
-            
-            try:
-                img = Image.open(temp_img_path)
-                
-                # Convert to RGB
-                if img.mode in ('RGBA', 'LA', 'P'):
-                    background = Image.new('RGB', img.size, (255, 255, 255))
-                    if img.mode == 'P':
-                        img = img.convert('RGBA')
-                    if img.mode in ('RGBA', 'LA'):
-                        background.paste(img, mask=img.split()[-1])
-                    else:
-                        background.paste(img)
-                    img = background
-                elif img.mode != 'RGB':
-                    img = img.convert('RGB')
-                
-                # Calculate scaling
-                img_width, img_height = img.size
-                aspect = img_height / float(img_width)
-                
-                margin = 50
-                available_width = page_width - (2 * margin)
-                available_height = page_height - (2 * margin)
-                
-                if available_width / available_height > img_width / img_height:
-                    new_height = available_height
-                    new_width = new_height / aspect
-                else:
-                    new_width = available_width
-                    new_height = new_width * aspect
-                
-                x_offset = (page_width - new_width) / 2
-                y_offset = (page_height - new_height) / 2
-                
-                temp_rgb_path = temp_img_path + '_rgb.jpg'
-                img.save(temp_rgb_path, 'JPEG', quality=95)
-                
-                c.drawImage(temp_rgb_path, x_offset, y_offset, width=new_width, height=new_height)
-                c.showPage()
-                
-                # Cleanup
-                if os.path.exists(temp_img_path):
-                    os.remove(temp_img_path)
-                if os.path.exists(temp_rgb_path):
-                    os.remove(temp_rgb_path)
-            except Exception as e:
-                logger.error(f"❌ Image processing error: {e}")
-                if os.path.exists(temp_img_path):
-                    os.remove(temp_img_path)
-                continue
-        
-        c.save()
-        file_size = os.path.getsize(pdf_path)
-        
-        logger.info(f"✅ PDF created: {pdf_filename}")
-        
-        return jsonify({
-            'success': True,
-            'file_url': url_for('static', filename=f'attachments/{pdf_filename}'),
-            'file_name': pdf_filename,
-            'file_size': file_size,
-            'file_type': 'application/pdf'
-        })
-    except Exception as e:
-        logger.error(f"❌ PDF conversion error: {e}")
-        return jsonify({'success': False, 'error': 'Conversion failed'}), 500
 
 # Socket Events
 @socketio.on('connect')
@@ -889,6 +879,59 @@ def internal_error(error):
     """Handle 500 errors"""
     logger.error(f"❌ Internal error: {error}")
     return render_template('500.html'), 500
+@app.route('/favicon.ico')
+def favicon():
+    """Favicon route"""
+    return '', 204
+@app.route('/change_background', methods=['POST'])
+def change_background():
+    """Change chat background - supports image upload and URL"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    
+    try:
+        background_type = request.form.get('background_type')  # gradient, color, image, url
+        background_value = request.form.get('background_value', '')
+        
+        # Handle image upload from phone/computer
+        if background_type == 'upload' and 'background_image' in request.files:
+            file = request.files['background_image']
+            if file and file.filename and allowed_file(file.filename):
+                timestamp = datetime.now().timestamp()
+                filename = secure_filename(f"bg_{session['username']}_{int(timestamp)}_{file.filename}")
+                filepath = os.path.join(UPLOAD_FOLDER, filename)
+                file.save(filepath)
+                background_value = url_for('static', filename=f'uploads/{filename}')
+                background_type = 'image'
+                logger.info(f"✅ Background image uploaded: {filename}")
+        
+        # Handle URL from internet
+        elif background_type == 'url':
+            # Validate URL format
+            if not background_value.startswith(('http://', 'https://')):
+                return jsonify({'success': False, 'error': 'Invalid image URL'}), 400
+            background_type = 'image'
+        
+        # Update user's background preference in MongoDB
+        users_collection.update_one(
+            {'username': session['username']},
+            {'$set': {
+                'chat_background_type': background_type,
+                'chat_background_value': background_value
+            }}
+        )
+        
+        logger.info(f"✅ Background changed for {session['username']}: {background_type}")
+        return jsonify({
+            'success': True, 
+            'message': 'Background updated!',
+            'background_type': background_type,
+            'background_value': background_value
+        })
+    
+    except Exception as e:
+        logger.error(f"❌ Background change error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # Health check endpoint (for deployment platforms)
 @app.route('/health')

@@ -304,6 +304,11 @@
                     <i class="fas fa-door-open mr-2"></i>
                     <span id="currentRoomDisplay" class="font-semibold">General</span>
                 </div>
+                 <button onclick="openBackgroundModal()" 
+            class="text-white hover:bg-white/20 p-2 rounded-lg transition" 
+            title="Change Background">
+            <i class="fas fa-image text-xl"></i>
+        </button>
                 <!-- PDF Converter Link -->
 
  <button onclick="requestNotificationPermission()" id="notifBtn"
@@ -1257,4 +1262,263 @@
         }
     });
 </script>
+<!-- Background Settings Modal -->
+<div id="backgroundModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-purple-600 to-pink-600 p-6 rounded-t-2xl">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-image text-white text-2xl"></i>
+                    <h3 class="text-xl font-bold text-white">Customize Chat Background</h3>
+                </div>
+                <button onclick="closeBackgroundModal()" class="text-white hover:bg-white/20 p-2 rounded-lg transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="p-6 space-y-6">
+            <!-- Upload from Phone/Computer -->
+            <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6">
+                <h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-mobile-alt mr-2 text-blue-600"></i>
+                    Upload from Device
+                </h4>
+                <p class="text-sm text-gray-600 mb-4">Choose a photo from your phone or computer</p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="file" id="bgImageInput" accept="image/*" class="hidden">
+                    <button onclick="document.getElementById('bgImageInput').click()" 
+                        class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition shadow-lg">
+                        <i class="fas fa-upload mr-2"></i>Choose Image
+                    </button>
+                    <span id="bgImageName" class="text-sm text-gray-600 flex items-center"></span>
+                </div>
+            </div>
+
+            <!-- Image from Internet URL -->
+            <div class="bg-gradient-to-r from-green-50 to-teal-50 rounded-xl p-6">
+                <h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-link mr-2 text-green-600"></i>
+                    Use Image from Internet
+                </h4>
+                <p class="text-sm text-gray-600 mb-4">Paste image URL from any website</p>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="url" id="bgImageURL" 
+                        class="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:outline-none"
+                        placeholder="https://example.com/image.jpg">
+                    <button onclick="setBackgroundFromURL()" 
+                        class="px-6 py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-lg font-semibold hover:from-green-700 hover:to-teal-700 transition shadow-lg">
+                        <i class="fas fa-check mr-2"></i>Apply
+                    </button>
+                </div>
+            </div>
+
+            <!-- Gradient Backgrounds -->
+            <div>
+                <h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-palette mr-2 text-purple-600"></i>
+                    Gradient Backgrounds
+                </h4>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <button onclick="setBackground('gradient', 'blue-purple')" class="h-24 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 hover:scale-105 transition shadow-lg border-2 border-transparent hover:border-white"></button>
+                    <button onclick="setBackground('gradient', 'pink-orange')" class="h-24 rounded-xl bg-gradient-to-br from-pink-500 to-orange-400 hover:scale-105 transition shadow-lg"></button>
+                    <button onclick="setBackground('gradient', 'green-teal')" class="h-24 rounded-xl bg-gradient-to-br from-green-400 to-teal-500 hover:scale-105 transition shadow-lg"></button>
+                    <button onclick="setBackground('gradient', 'purple-pink')" class="h-24 rounded-xl bg-gradient-to-br from-purple-600 to-pink-500 hover:scale-105 transition shadow-lg"></button>
+                    <button onclick="setBackground('gradient', 'indigo-blue')" class="h-24 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-400 hover:scale-105 transition shadow-lg"></button>
+                    <button onclick="setBackground('gradient', 'red-yellow')" class="h-24 rounded-xl bg-gradient-to-br from-red-500 to-yellow-400 hover:scale-105 transition shadow-lg"></button>
+                </div>
+            </div>
+
+            <!-- Solid Colors -->
+            <div>
+                <h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-fill-drip mr-2 text-blue-600"></i>
+                    Solid Colors
+                </h4>
+                <div class="grid grid-cols-6 gap-2">
+                    <button onclick="setBackground('color', '#ffffff')" class="h-12 rounded-lg bg-white border-2 border-gray-300 hover:scale-105 transition shadow"></button>
+                    <button onclick="setBackground('color', '#f3f4f6')" class="h-12 rounded-lg bg-gray-100 hover:scale-105 transition shadow"></button>
+                    <button onclick="setBackground('color', '#dbeafe')" class="h-12 rounded-lg bg-blue-100 hover:scale-105 transition shadow"></button>
+                    <button onclick="setBackground('color', '#fce7f3')" class="h-12 rounded-lg bg-pink-100 hover:scale-105 transition shadow"></button>
+                    <button onclick="setBackground('color', '#dcfce7')" class="h-12 rounded-lg bg-green-100 hover:scale-105 transition shadow"></button>
+                    <button onclick="setBackground('color', '#fef3c7')" class="h-12 rounded-lg bg-yellow-100 hover:scale-105 transition shadow"></button>
+                </div>
+            </div>
+
+            <!-- Reset Button -->
+            <button onclick="setBackground('default', 'default')" 
+                class="w-full py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition">
+                <i class="fas fa-undo mr-2"></i>Reset to Default
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Background modal functions
+function openBackgroundModal() {
+    document.getElementById('backgroundModal').classList.remove('hidden');
+}
+
+function closeBackgroundModal() {
+    document.getElementById('backgroundModal').classList.add('hidden');
+}
+
+// Set background (gradient/color/default)
+async function setBackground(type, value) {
+    const formData = new FormData();
+    formData.append('background_type', type);
+    formData.append('background_value', value);
+    
+    try {
+        const response = await fetch('/change_background', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            applyBackground(result.background_type, result.background_value);
+            showNotification('✅ Background updated!');
+            closeBackgroundModal();
+        }
+    } catch (error) {
+        console.error('Background change error:', error);
+        showNotification('❌ Failed to update background');
+    }
+}
+
+// Set background from URL (internet image)
+async function setBackgroundFromURL() {
+    const url = document.getElementById('bgImageURL').value.trim();
+    
+    if (!url) {
+        showNotification('❌ Please enter an image URL');
+        return;
+    }
+    
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        showNotification('❌ Invalid URL format');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('background_type', 'url');
+    formData.append('background_value', url);
+    
+    try {
+        const response = await fetch('/change_background', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            applyBackground('image', url);
+            showNotification('✅ Background from URL applied!');
+            closeBackgroundModal();
+        } else {
+            showNotification('❌ ' + result.error);
+        }
+    } catch (error) {
+        console.error('URL background error:', error);
+        showNotification('❌ Failed to apply background');
+    }
+}
+
+// Apply background to chat container
+function applyBackground(type, value) {
+    const chatContainer = document.getElementById('messagesContainer');
+    
+    // Reset styles
+    chatContainer.style.background = '';
+    chatContainer.style.backgroundImage = '';
+    chatContainer.style.backgroundColor = '';
+    chatContainer.className = 'flex-1 overflow-y-auto p-4 space-y-4';
+    
+    if (type === 'gradient') {
+        const gradients = {
+            'blue-purple': 'linear-gradient(to bottom right, #3b82f6, #9333ea)',
+            'pink-orange': 'linear-gradient(to bottom right, #ec4899, #fb923c)',
+            'green-teal': 'linear-gradient(to bottom right, #4ade80, #14b8a6)',
+            'purple-pink': 'linear-gradient(to bottom right, #9333ea, #ec4899)',
+            'indigo-blue': 'linear-gradient(to bottom right, #4f46e5, #60a5fa)',
+            'red-yellow': 'linear-gradient(to bottom right, #ef4444, #facc15)'
+        };
+        chatContainer.style.background = gradients[value];
+    } else if (type === 'color') {
+        chatContainer.style.backgroundColor = value;
+    } else if (type === 'image') {
+        chatContainer.style.backgroundImage = `url('${value}')`;
+        chatContainer.style.backgroundSize = 'cover';
+        chatContainer.style.backgroundPosition = 'center';
+        chatContainer.style.backgroundRepeat = 'no-repeat';
+        chatContainer.style.backgroundAttachment = 'fixed';
+    } else {
+        chatContainer.style.backgroundColor = '#f3f4f6';
+    }
+}
+
+// Upload image from device
+document.getElementById('bgImageInput').addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Show filename
+    document.getElementById('bgImageName').textContent = `Selected: ${file.name}`;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        showNotification('❌ Please select an image file');
+        return;
+    }
+    
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        showNotification('❌ Image too large (max 5MB)');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('background_type', 'upload');
+    formData.append('background_image', file);
+    
+    try {
+        showNotification('⏳ Uploading...');
+        
+        const response = await fetch('/change_background', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            applyBackground(result.background_type, result.background_value);
+            showNotification('✅ Background image uploaded!');
+            closeBackgroundModal();
+        } else {
+            showNotification('❌ ' + result.error);
+        }
+    } catch (error) {
+        console.error('Upload error:', error);
+        showNotification('❌ Failed to upload image');
+    }
+});
+
+// Load saved background on page load
+window.addEventListener('DOMContentLoaded', function() {
+    const bgType = "{{ user.get('chat_background_type', 'default') }}";
+    const bgValue = "{{ user.get('chat_background_value', 'default') }}";
+    
+    if (bgType && bgType !== 'default') {
+        applyBackground(bgType, bgValue);
+    }
+});
+</script>
+
 {% endblock %}
