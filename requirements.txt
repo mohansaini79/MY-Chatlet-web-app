@@ -6,3 +6,5 @@ python-dotenv==1.0.0
 Werkzeug==3.0.1
 cloudinary==1.40.0
 gunicorn==21.2.0
+eventlet==0.35.2
+dnspython==2.4.2
