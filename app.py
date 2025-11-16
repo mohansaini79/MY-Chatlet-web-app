@@ -32,18 +32,27 @@ app = Flask(__name__)
 
 # Security: Use environment variable or generate strong secret key
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size (Cloudinary handles large files)
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # ✅ 10MB limit for faster uploads
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
 
-# ✅ Configure Cloudinary
-cloudinary.config(
-    cloud_name=os.getenv('CLOUD_NAME'),
-    api_key=os.getenv('CLOUDINARY_API_KEY'),
-    api_secret=os.getenv('CLOUDINARY_API_SECRET'),
-    secure=True
-)
+# ✅ Verify and Configure Cloudinary
+cloud_name = os.getenv('CLOUD_NAME')
+api_key = os.getenv('CLOUDINARY_API_KEY')
+api_secret = os.getenv('CLOUDINARY_API_SECRET')
 
-logger.info(f"✅ Cloudinary configured: {os.getenv('CLOUD_NAME')}")
+if not cloud_name or not api_key or not api_secret:
+    logger.warning("⚠️ Cloudinary credentials not found!")
+    logger.warning(f"CLOUD_NAME: {cloud_name or 'Not Set'}")
+    logger.warning(f"API_KEY: {'Set' if api_key else 'Not Set'}")
+    logger.warning(f"API_SECRET: {'Set' if api_secret else 'Not Set'}")
+else:
+    cloudinary.config(
+        cloud_name=cloud_name,
+        api_key=api_key,
+        api_secret=api_secret,
+        secure=True
+    )
+    logger.info(f"✅ Cloudinary configured: {cloud_name}")
 
 # Security headers
 @app.after_request
@@ -63,12 +72,12 @@ if ALLOWED_ORIGINS != '*':
 socketio = SocketIO(
     app,
     cors_allowed_origins=ALLOWED_ORIGINS,
-    async_mode='eventlet',
+    async_mode='threading',  # ✅ Changed from eventlet for better compatibility
     logger=log_level == logging.DEBUG,
     engineio_logger=log_level == logging.DEBUG,
     ping_timeout=60,
     ping_interval=25,
-    max_http_buffer_size=50 * 1024 * 1024
+    max_http_buffer_size=10 * 1024 * 1024  # ✅ Reduced for faster processing
 )
 
 # ✅ Allowed file extensions for Cloudinary
@@ -279,7 +288,7 @@ def chat():
 
 @app.route('/edit_profile', methods=['GET', 'POST'])
 def edit_profile():
-    """Handle profile editing with Cloudinary"""
+    """Handle profile editing with OPTIMIZED Cloudinary upload"""
     if 'username' not in session:
         flash('Please login first!', 'error')
         return redirect(url_for('login'))
@@ -293,7 +302,7 @@ def edit_profile():
         
         update_data = {'bio': bio, 'theme': theme}
         
-        # ✅ Upload profile picture to Cloudinary
+        # ✅ OPTIMIZED Profile picture upload
         if profile_picture and profile_picture.filename:
             if allowed_file(profile_picture.filename):
                 try:
@@ -304,13 +313,14 @@ def edit_profile():
                         overwrite=True,
                         resource_type="auto",
                         transformation=[
-                            {'width': 400, 'height': 400, 'crop': 'fill', 'gravity': 'face'},
-                            {'quality': 'auto'},
-                            {'fetch_format': 'auto'}
-                        ]
+                            {'width': 300, 'height': 300, 'crop': 'fill', 'gravity': 'face'},  # ✅ Smaller size
+                            {'quality': 'auto:low'},      # ✅ Lower quality = faster
+                            {'fetch_format': 'auto'}       # ✅ Auto format
+                        ],
+                        timeout=30  # ✅ Reasonable timeout
                     )
                     update_data['profile_picture'] = upload_result['secure_url']
-                    logger.info(f"✅ Profile picture uploaded to Cloudinary: {upload_result['public_id']}")
+                    logger.info(f"✅ Profile picture uploaded: {upload_result['public_id']}")
                 except Exception as e:
                     logger.error(f"❌ Cloudinary upload error: {e}")
                     flash('Failed to upload profile picture!', 'error')
@@ -446,11 +456,11 @@ def change_password():
         logger.error(f"❌ Password change error: {e}")
         return jsonify({'success': False, 'error': 'An error occurred'}), 500
 
-# ✅ CLOUDINARY FILE UPLOAD ROUTES
+# ✅ OPTIMIZED CLOUDINARY FILE UPLOAD ROUTES
 
 @app.route('/upload_attachment', methods=['POST'])
 def upload_attachment():
-    """Upload single file to Cloudinary (images, PDFs, audio, video, docs)"""
+    """OPTIMIZED single file upload to Cloudinary"""
     if 'username' not in session:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
     
@@ -461,26 +471,36 @@ def upload_attachment():
     if file.filename == '':
         return jsonify({'success': False, 'error': 'No file selected'}), 400
     
+    # ✅ Check file size before upload (5MB limit for speed)
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    
+    if file_size > 5 * 1024 * 1024:  # 5MB limit
+        return jsonify({'success': False, 'error': 'File too large. Max 5MB allowed'}), 400
+    
     if file and allowed_file(file.filename):
         try:
-            # Get file extension to determine resource type
             file_extension = file.filename.rsplit('.', 1)[1].lower()
             
             # Determine Cloudinary resource_type
-            if file_extension in {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'pdf', 'tiff'}:
+            if file_extension in {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'tiff'}:
                 resource_type = 'image'
             elif file_extension in {'mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma', 'mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm', 'mpeg', 'mpg'}:
-                resource_type = 'video'  # Audio files are treated as video in Cloudinary
+                resource_type = 'video'
             else:
-                resource_type = 'raw'  # For documents, archives, code files
+                resource_type = 'raw'
             
-            # Upload to Cloudinary
+            # ✅ OPTIMIZED Upload with compression
             upload_result = cloudinary.uploader.upload(
                 file,
                 folder=f"chatapp/attachments/{session['username']}",
                 resource_type=resource_type,
                 use_filename=True,
-                unique_filename=True
+                unique_filename=True,
+                quality='auto:low',    # ✅ Auto quality (faster)
+                fetch_format='auto',   # ✅ Auto format
+                timeout=60             # ✅ Increased timeout
             )
             
             file_url = upload_result['secure_url']
@@ -488,7 +508,7 @@ def upload_attachment():
             file_format = upload_result.get('format', file_extension)
             public_id = upload_result['public_id']
             
-            logger.info(f"✅ File uploaded to Cloudinary: {public_id} ({file_size} bytes)")
+            logger.info(f"✅ File uploaded: {public_id} ({file_size} bytes)")
             
             return jsonify({
                 'success': True,
@@ -507,7 +527,7 @@ def upload_attachment():
 
 @app.route('/upload_multiple_attachments', methods=['POST'])
 def upload_multiple_attachments():
-    """Upload multiple files to Cloudinary"""
+    """OPTIMIZED multiple files upload"""
     if 'username' not in session:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
     
@@ -519,8 +539,8 @@ def upload_multiple_attachments():
     if not files or len(files) == 0:
         return jsonify({'success': False, 'error': 'No files selected'}), 400
     
-    if len(files) > 10:
-        return jsonify({'success': False, 'error': 'Maximum 10 files allowed'}), 400
+    if len(files) > 5:  # ✅ Reduced from 10 to 5 for faster processing
+        return jsonify({'success': False, 'error': 'Maximum 5 files allowed'}), 400
     
     uploaded_files = []
     
@@ -528,12 +548,19 @@ def upload_multiple_attachments():
         if file.filename == '':
             continue
         
+        # ✅ Check individual file size
+        file.seek(0, os.SEEK_END)
+        file_size_check = file.tell()
+        file.seek(0)
+        
+        if file_size_check > 5 * 1024 * 1024:
+            continue  # Skip files larger than 5MB
+        
         if file and allowed_file(file.filename):
             try:
                 file_extension = file.filename.rsplit('.', 1)[1].lower()
                 
-                # Determine resource_type
-                if file_extension in {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'pdf', 'tiff'}:
+                if file_extension in {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'tiff'}:
                     resource_type = 'image'
                 elif file_extension in {'mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a', 'wma', 'mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm', 'mpeg', 'mpg'}:
                     resource_type = 'video'
@@ -545,7 +572,10 @@ def upload_multiple_attachments():
                     folder=f"chatapp/attachments/{session['username']}",
                     resource_type=resource_type,
                     use_filename=True,
-                    unique_filename=True
+                    unique_filename=True,
+                    quality='auto:low',  # ✅ Optimized
+                    fetch_format='auto',  # ✅ Optimized
+                    timeout=60
                 )
                 
                 uploaded_files.append({
@@ -559,7 +589,7 @@ def upload_multiple_attachments():
                 
                 logger.info(f"✅ Multiple upload: {upload_result['public_id']}")
             except Exception as e:
-                logger.error(f"❌ Cloudinary multi-upload error: {e}")
+                logger.error(f"❌ Multi-upload error: {e}")
                 continue
     
     if uploaded_files:
@@ -573,7 +603,7 @@ def upload_multiple_attachments():
 
 @app.route('/change_background', methods=['POST'])
 def change_background():
-    """Change chat background - upload to Cloudinary or use URL"""
+    """OPTIMIZED background change"""
     if 'username' not in session:
         return jsonify({'success': False, 'error': 'Not authenticated'}), 401
     
@@ -581,7 +611,6 @@ def change_background():
         background_type = request.form.get('background_type')
         background_value = request.form.get('background_value', '')
         
-        # ✅ Upload background image to Cloudinary
         if background_type == 'upload' and 'background_image' in request.files:
             file = request.files['background_image']
             if file and file.filename and allowed_file(file.filename):
@@ -592,13 +621,14 @@ def change_background():
                     overwrite=True,
                     resource_type="image",
                     transformation=[
-                        {'quality': 'auto'},
-                        {'fetch_format': 'auto'}
-                    ]
+                        {'quality': 'auto:low'},   # ✅ Lower quality
+                        {'fetch_format': 'auto'}   # ✅ Auto format
+                    ],
+                    timeout=30
                 )
                 background_value = upload_result['secure_url']
                 background_type = 'image'
-                logger.info(f"✅ Background uploaded to Cloudinary: {upload_result['public_id']}")
+                logger.info(f"✅ Background uploaded: {upload_result['public_id']}")
         
         elif background_type == 'url':
             if not background_value.startswith(('http://', 'https://')):
@@ -613,7 +643,7 @@ def change_background():
             }}
         )
         
-        logger.info(f"✅ Background changed for {session['username']}: {background_type}")
+        logger.info(f"✅ Background changed for {session['username']}")
         return jsonify({
             'success': True,
             'message': 'Background updated!',
@@ -625,7 +655,7 @@ def change_background():
         logger.error(f"❌ Background change error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Socket Events (unchanged, but they now use Cloudinary URLs from messages)
+# Socket Events (unchanged)
 
 @socketio.on('connect')
 def on_connect():
@@ -1012,13 +1042,8 @@ if __name__ == '__main__':
     debug_mode = os.getenv('DEBUG', 'False').lower() == 'true'
     host = os.getenv('HOST', '0.0.0.0')
     
-    logger.info(f"🚀 Starting Chatlet server with Cloudinary...")
+    logger.info(f"🚀 Starting Chatlet server with OPTIMIZED Cloudinary...")
     logger.info(f"📊 Debug mode: {debug_mode}")
     logger.info(f"🌐 Host: {host}:{port}")
     
-    socketio.run(
-        app,
-        debug=debug_mode,
-        host=host,
-        port=port
-    )
+    socketio.run(app, debug=debug_mode, host=host, port=port)
