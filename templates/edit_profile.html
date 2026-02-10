@@ -1,126 +1,73 @@
-<!-- Profile Card -->
-<div class="bg-white rounded-2xl shadow-xl overflow-hidden">
-    
-    <!-- Header Gradient -->
-    <div class="bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-center">
+<!-- Pro{% extends "base.html" %}
+{% block title %}Edit Profile - Chatlet{% endblock %}
 
-        <!-- Profile Image Wrapper -->
-        <div class="relative w-32 h-32 mx-auto">
+{% block content %}
 
-            {% if user.profile_picture %}
-                <!-- ✅ Cloudinary Image Direct URL -->
-                <img id="profilePreview"
-                     src="{{ user.profile_picture }}"
-                     alt="{{ user.username }}"
-                     class="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg">
-            {% else %}
-                <!-- Default Avatar -->
-                <div id="profilePreview"
-                     class="w-32 h-32 bg-white text-blue-600 rounded-full flex items-center justify-center text-5xl font-bold border-4 border-white shadow-lg">
-                     {{ user.username[0].upper() }}
-                </div>
-            {% endif %}
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4">  
+    <div class="max-w-4xl mx-auto">  
+        <!-- Back Button -->  
+        <a href="{{ url_for('chat') }}" class="inline-flex items-center text-blue-600 hover:text-blue-700 mb-6 transition">  
+            <i class="fas fa-arrow-left mr-2"></i>Back to Chat  
+        </a>  <div class="grid md:grid-cols-2 gap-6">  
+        <!-- Profile Card -->  
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">  
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-center">  
+                <div class="inline-block relative">  
+                    {% if user.profile_picture %}  
+                        <img id="profilePreview" src="{{ url_for('static', filename=user.profile_picture) }}"   
+                            alt="{{ username }}" class="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg">  
+                    {% else %}  
+                        <div id="profilePreview" class="w-32 h-32 bg-white text-blue-600 rounded-full flex items-center justify-center text-5xl font-bold border-4 border-white shadow-lg">  
+                            {{ user.username[0].upper() }}  
+                        </div>  
+                    {% endif %}  
+                    <label for="profile_picture" class="absolute bottom-0 right-0 bg-white text-blue-600 rounded-full p-3 cursor-pointer hover:bg-gray-100 shadow-lg transform hover:scale-110 transition">  
+                        <i class="fas fa-camera"></i>  
+                    </label>  
+                </div>  
+                <h1 class="text-2xl font-bold text-white mt-4">{{ user.username }}</h1>  
+            </div>  
 
-            <!-- 📸 Camera Upload Button -->
-            <label for="profile_picture"
-                   class="absolute bottom-0 right-0 bg-white text-blue-600 rounded-full p-3 cursor-pointer hover:bg-gray-100 shadow-lg transform hover:scale-110 transition">
-                <i class="fas fa-camera"></i>
-            </label>
+            <form method="POST" action="{{ url_for('edit_profile') }}" enctype="multipart/form-data" id="profileForm" class="p-8">  
+                <input type="file" name="profile_picture" id="profile_picture" accept="image/*" class="hidden">  
 
-            <!-- 🏷️ Username Overlay -->
-            <div class="absolute -bottom-6 left-1/2 transform -translate-x-1/2
-                        bg-black/70 text-white text-sm px-3 py-1 rounded-full
-                        backdrop-blur shadow-md">
-                {{ user.username }}
-            </div>
+                <div class="mb-6">  
+                    <label for="bio" class="block text-sm font-semibold text-gray-700 mb-2">  
+                        <i class="fas fa-info-circle mr-2 text-blue-500"></i>Bio  
+                    </label>  
+                    <textarea name="bio" id="bio" rows="4" maxlength="200"  
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"  
+                        placeholder="Tell us about yourself...">{{ user.bio }}</textarea>  
+                    <div class="flex justify-between mt-2">  
+                        <p class="text-xs text-gray-500">Maximum 200 characters</p>  
+                        <p class="text-xs text-gray-500"><span id="charCount">{{ user.bio|length if user.bio else 0 }}</span>/200</p>  
+                    </div>  
+                </div>  
 
+                <div class="bg-gray-50 rounded-lg p-4 mb-6">  
+                    <h3 class="font-semibold text-gray-700 mb-3">Profile Information</h3>  
+                    <div class="space-y-2 text-sm">  
+                        <div class="flex items-center justify-between">  
+                            <span class="text-gray-600">Username:</span>  
+                            <span class="font-semibold text-gray-800">{{ user.username }}</span>  
+                        </div>  
+                        <div class="flex items-center justify-between">  
+                            <span class="text-gray-600">Profile Picture:</span>  
+                            <span class="font-semibold text-gray-800" id="pictureStatus">  
+                                {{ 'Uploaded' if user.profile_picture else 'Not set' }}  
+                            </span>  
+                        </div>  
+                    </div>  
+                </div>  
+
+                <button type="submit" id="saveBtn"  
+                    class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 transform hover:scale-105 transition duration-200 shadow-lg">  
+                    <span id="saveBtnText"><i class="fas fa-save mr-2"></i>Save Profile</span>  
+                    <span id="saveBtnSpinner" class="hidden"><i class="fas fa-spinner spinner mr-2"></i>Saving...</span>  
+                </button>  
+            </form>  
         </div>
 
-    </div>
-
-    <!-- Form Start -->
-    <form method="POST"
-          action="{{ url_for('edit_profile') }}"
-          enctype="multipart/form-data"
-          id="profileForm"
-          class="p-8 pt-12">
-
-        <!-- Hidden File Input -->
-        <input type="file"
-               name="profile_picture"
-               id="profile_picture"
-               accept="image/*"
-               class="hidden">
-
-        <!-- Bio -->
-        <div class="mb-6">
-            <label for="bio"
-                   class="block text-sm font-semibold text-gray-700 mb-2">
-                <i class="fas fa-info-circle mr-2 text-blue-500"></i>Bio
-            </label>
-
-            <textarea name="bio"
-                      id="bio"
-                      rows="4"
-                      maxlength="200"
-                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                      placeholder="Tell us about yourself...">{{ user.bio }}</textarea>
-
-            <div class="flex justify-between mt-2">
-                <p class="text-xs text-gray-500">
-                    Maximum 200 characters
-                </p>
-                <p class="text-xs text-gray-500">
-                    <span id="charCount">
-                        {{ user.bio|length if user.bio else 0 }}
-                    </span>/200
-                </p>
-            </div>
-        </div>
-
-        <!-- Profile Info -->
-        <div class="bg-gray-50 rounded-lg p-4 mb-6">
-            <h3 class="font-semibold text-gray-700 mb-3">
-                Profile Information
-            </h3>
-
-            <div class="space-y-2 text-sm">
-
-                <div class="flex items-center justify-between">
-                    <span class="text-gray-600">Username:</span>
-                    <span class="font-semibold text-gray-800">
-                        {{ user.username }}
-                    </span>
-                </div>
-
-                <div class="flex items-center justify-between">
-                    <span class="text-gray-600">Profile Picture:</span>
-                    <span class="font-semibold text-gray-800"
-                          id="pictureStatus">
-                        {{ 'Uploaded' if user.profile_picture else 'Not set' }}
-                    </span>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- Save Button -->
-        <button type="submit"
-                id="saveBtn"
-                class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 transform hover:scale-105 transition duration-200 shadow-lg">
-
-            <span id="saveBtnText">
-                <i class="fas fa-save mr-2"></i>Save Profile
-            </span>
-
-            <span id="saveBtnSpinner" class="hidden">
-                <i class="fas fa-spinner spinner mr-2"></i>Saving...
-            </span>
-
-        </button>
-
-    </form>
-</div>
 
             <!-- Change Password Card -->
             <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
